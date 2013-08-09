@@ -9,8 +9,6 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
     
     <script type="text/javascript" src="lib/bundled/easeljs-0.6.1.min.js"></script>
-
-<script> console.log(createjs.Stage); </script>
     <script type="text/javascript" src="lib/bundled/filters/Filter.js"></script>
     <script type="text/javascript" src="lib/bundled/filters/AlphaMapFilter.js"></script>
     <script type="text/javascript" src="lib/bundled/filters/AlphaMaskFilter.js"></script>
@@ -18,6 +16,7 @@
     <script type="text/javascript" src="lib/bundled/filters/ColorFilter.js"></script>
     <script type="text/javascript" src="lib/bundled/filters/ColorMatrix.js"></script>
     <script type="text/javascript" src="lib/bundled/filters/ColorMatrixFilter.js"></script>
+    <script type="text/javascript" src="lib/editor.js"></script>
 
 
    	<!-- We also provide hosted minified versions of all CreateJS libraries.
@@ -36,28 +35,37 @@
         var slideInterval = -1;
         var cm;
 
+        var shape, canvas;
+        var baseScale = 2;
+
+
+        var EDITOR = null;
+
         function init() {
         	if (window.top != window) {
         		document.getElementById("header").style.display = "none";
         	}
 	        document.getElementById("loader").className = "loader";
 
-            img = new Image();
-            img.onload = handleImageLoad;
-            img.src = "assets/flowers_small.jpg";
+            canvas = document.getElementById("testCanvas");
+            EDITOR = new MorandiEditor(canvas);
+
+            $(canvas).bind('loaded', handleImageLoad)
+            EDITOR.loadImage('assets/flowers_small.jpg');
         }
 
         function handleImageLoad() {
 	        document.getElementById("loader").className = "";
 
-            var canvas = document.getElementById("testCanvas");
-
-            stage = new createjs.Stage(canvas);
-
-            bmp = new createjs.Bitmap(img);
-	        bmp.scaleX = bmp.scaleY = 2;
-            bmp.cache(0,0,img.width,img.height);
-            stage.addChild(bmp);
+            $(".rotationSlider").slider({
+                value: 0,
+                min: -10,
+                max: 10,
+                step: 0.25,
+                disabled:false,
+	            change:handleChange,
+	            slide: handleSlide
+            });
 
             $(".brightnessSlider").slider({
                 value: 0,
@@ -147,7 +155,7 @@
 
         function handleSlide() {
 	        if (slideInterval == -1) {
-		        slideInterval = setInterval(applyEffect, 250);
+		        slideInterval = setInterval(applyEffect, 50);
 	        }
         }
 
@@ -158,6 +166,8 @@
         }
 
         function applyEffect() {
+            
+            var rotationValue = $(".rotationSlider").slider("option", "value");
             var brightnessValue = $(".brightnessSlider").slider("option", "value");
             var contrastValue =  $(".contrastSlider").slider("option", "value");
             var saturationValue =  $(".saturationSlider").slider("option", "value");
@@ -170,19 +180,18 @@
             var greenChannelValue = $(".greenChannelSlider").slider("option", "value");
             var blueChannelValue = $(".blueChannelSlider").slider("option", "value");
 
-            cm = new createjs.ColorMatrix();
-            cm.adjustColor(brightnessValue, contrastValue, saturationValue, hueValue);
+            EDITOR.apply({
+              rotation: rotationValue,
+              brightness: brightnessValue,
+              contrast: contrastValue,
+              saturation: saturationValue,
+              hue: hueValue
+            });
 
-            colorFilter = new createjs.ColorMatrixFilter(cm);
-            blurFilter = new createjs.BoxBlurFilter(blurXValue,  blurYValue, 2);
-            redChannelFilter = new createjs.ColorFilter(redChannelvalue/255,1,1,1);
-            greenChannelFilter = new createjs.ColorFilter(1,greenChannelValue/255,1,1);
-            blueChannelFilter = new createjs.ColorFilter(1,1,blueChannelValue/255,1);
-
-            updateImage();
         }
 
         function handleReset() {
+            $(".rotationSlider").slider("option", "value", 0);
             $(".brightnessSlider").slider("option", "value", 0);
             $(".saturationSlider").slider("option", "value", 0);
             $(".hueSlider").slider("option", "value", 0);
@@ -196,16 +205,12 @@
             applyEffect();
         }
 
-        function updateImage() {
-            bmp.filters = [colorFilter, blurFilter, redChannelFilter, greenChannelFilter, blueChannelFilter];
-            bmp.updateCache();
-            stage.update();
-        }
-
     </script>
 
     <style type="text/css">
         /* define a width for the sliders by styling the wrapping div */
+
+        .rotationSlider,
         .hueSlider,
         .saturationSlider,
         .contrastSlider,
@@ -226,14 +231,19 @@
 	    <p>Demonstrates using filters. Change the values in order to preview the results. Filters are applied on top of each other.</p>
 	</header>
 
-	<canvas id="testCanvas" width="960" height="250"></canvas>
+	<canvas id="testCanvas" width="1024" height="768"></canvas>
     <table>
         <td>
         <table cellspacing="7" border="0" cellpadding="3">
             <tr>
+                <th><div>Rotation:</div></th>
+                <td><div class="rotationSlider"></div></td>
+			      </tr>
+            <tr>
                 <th><div>Brightness:</div></th>
                 <td><div class="brightnessSlider"></div></td>
-			</tr><tr>
+			      </tr>
+            <tr>
                 <th><div>Contrast:</div></th>
                 <td><div class="contrastSlider"></div></td>
             </tr>
