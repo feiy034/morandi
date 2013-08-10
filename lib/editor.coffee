@@ -28,6 +28,8 @@ class root.MorandiEditor
 
     $(@canvas).trigger('loaded', @bmp)
 
+    @apply()
+
   loadImage: (src) ->
     img = new Image()
     img.onload = (=> @loadedImage(img))
