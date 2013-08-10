@@ -10,10 +10,18 @@ class root.MorandiEditor
   loadedImage: (img) ->
     @stage.removeChild(@bmp) if @bmp
 
+    scale1 = @canvas.width / img.width
+    scale2 = @canvas.height / img.height
+    if scale1 < scale2
+      @baseScale = scale1
+    else
+      @baseScale = scale2
+
     @bmp = new createjs.Bitmap(img)
     @bmp.regX = img.width / 2
     @bmp.regY = img.height / 2
-    @bmp.scaleX = @bmp.scaleY = @baseScale
+    @bmp.scaleX = @baseScale
+    @bmp.scaleY = @baseScale
     @bmp.cache(0, 0, img.width, img.height)
     @stage.addChild(@bmp)
     @stage.setChildIndex(@bmp, 0)
@@ -26,6 +34,17 @@ class root.MorandiEditor
     img.src = src
 
   apply: (values) ->
+    values ?= {}
+
+    values.rotation ?= 0
+    values.brightness ?= 0
+    values.contrast ?= 0
+    values.saturation ?= 0
+    values.hue ?= 0
+
+    values.blurX ?= 0
+    values.blurY ?= 0
+
     cm = new createjs.ColorMatrix()
     cm.adjustColor(values.brightness, values.contrast, values.saturation, values.hue)
 
@@ -41,13 +60,13 @@ class root.MorandiEditor
     @bmp.scaleX = scale
     @bmp.scaleY = scale
     @bmp.rotation = values.rotation
-    @bmp.x = canvas.width / 2
-    @bmp.y = canvas.height / 2
+    @bmp.x = @canvas.width / 2
+    @bmp.y = @canvas.height / 2
 
     ratio = 6.0/4.0
     rh = (@bmp.image.height) / ((ratio * Math.sin(rotationValueRad)) + Math.cos(rotationValueRad))
 
-    rh = rh * scale / 2 # Scale down to fit scaled down rect
+    rh = rh * scale / @baseScale # Scale down to fit scaled down rect
     rw = rh * ratio
 
     x = (@canvas.width / 2) - (@baseScale * rw / 2)
