@@ -5,18 +5,9 @@
 
     <link type="text/css" href="assets/demoStyles.css" rel="stylesheet" />
     <link type="text/css" href="assets/css/dark-hive/jquery-ui-1.8.18.custom.css" rel="stylesheet" />
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
-    
-    <script type="text/javascript" src="lib/bundled/easeljs-0.6.1.min.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/Filter.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/AlphaMapFilter.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/AlphaMaskFilter.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/BoxBlurFilter.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/ColorFilter.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/ColorMatrix.js"></script>
-    <script type="text/javascript" src="lib/bundled/filters/ColorMatrixFilter.js"></script>
-    <script type="text/javascript" src="lib/editor.js"></script>
+    <script type="text/javascript" src="lib/morandi.js"></script>
 
 
    	<!-- We also provide hosted minified versions of all CreateJS libraries.
@@ -181,11 +172,14 @@
             var blueChannelValue = $(".blueChannelSlider").slider("option", "value");
 
             EDITOR.setValues({
-              rotation: rotationValue,
+              straighten: rotationValue,
               brightness: brightnessValue,
               contrast: contrastValue,
               saturation: saturationValue,
-              hue: hueValue
+              hue: hueValue,
+              fx: $("#fx").val(),
+              'border-style': $("#border-style").val(),
+              'background-style': $("#background-style").val()
             });
 
         }
@@ -281,9 +275,48 @@
                     </td>
                 </tr>
             </table>
+
+
+            <select id="fx">
+              <option value="colour">Colour</option>
+              <option value="greyscale">Greyscale</option>
+              <option value="sepia">Sepia</option>
+              <option value="bluetone">Bluetone</option>
+            </select>
+
+
+            <div>
+            <select id="border-style">
+              <option value="square">Normal border</option>
+              <option value="retro">Retro Border</option>
+              <option value="">No Border</option>
+            </select>
+            <select id="background-style">
+              <option value="white">White</option>
+              <option value="black">Black</option>
+              <option value="dominant">Smart</option>
+            </select>
+          </div>
         </td>
     </table>
     <input type="button" id="resetBtn" name="resetBtn" value="Reset" />
+
+    <button class="mode-button" data-engine="Straighten" id="straighten">Straighten</button>
+    <button class="mode-button" data-engine="Colour" id="colourify">Colourify</button>
+    <button class="mode-button" data-engine="SimpleColourFX" id="colourfx">ColourFX</button>
+    <button class="mode-button" data-engine="Border" id="border">Border</button>
+    <button class="mode-button" data-engine="Crop" id="crop">Crop</button>
+
+<script>
+$(function () {
+  $('.mode-button').click(function (e) {
+    var ename = $(e.target).closest('[data-engine]').data('engine');
+    EDITOR.setEngine(new Morandi[ename]());
+    applyEffect();
+  });
+  $("#fx, #border-style, #background-style").change(function (e) { applyEffect(); });
+});
+</script>
 
 </body>
 </html>
