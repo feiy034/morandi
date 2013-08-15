@@ -41,18 +41,41 @@ root.Morandi =
     cr.cp
 
 
-class root.Morandi.EditMode
-  @applyTo: (editor) ->
-    # noop
+class root.Morandi.EditFilter
+  defaults: {}
+
+  constructor: (editor) ->
+    @editor = editor
+
+  defaultValues: (values) ->
+    values ?= {}
+    values[key] ?= val for key, val of @defaults
+    values
   addTo: (editor) ->
     @editor = editor
   removeFrom: (editor) ->
   className: ->
     @constructor.name
+  applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
 
 
-class root.Morandi.Border extends root.Morandi.EditMode
-  @applyTo: (editor) ->
+
+
+
+
+
+"""
+Morandi.Border
+
+Keys: border-style, background-style.
+
+Renders border on image
+"""
+
+class root.Morandi.Border extends root.Morandi.EditFilter
+  defaults:
+    'border-style': ''
+    'background-style': 'white'
 
   addTo: (editor) ->
     editor.border = new createjs.Shape()
@@ -64,16 +87,50 @@ class root.Morandi.Border extends root.Morandi.EditMode
     delete @editor.border
     super
 
-  setValues: (values) ->
-    values ?= {}
+  applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
+    values = @defaultValues(@editor.values)
 
-    values['border-style'] ?= ''
-    values['background-style'] ?= ''
+    dup = @editor.copyCanvas(@editor.bmp.cacheCanvas)
+    @editor.bmp.cacheCanvas.width = @editor.bmp.cacheCanvas.width
+    #p [@angle, rotationValueRad, rh, scale, pixbuf.height]
+    ctx.save()
+
+
+    switch values['background-style']
+      when 'white'
+        fill = createjs.Graphics.getRGB(255, 255, 255)
+      when 'black'
+        fill = createjs.Graphics.getRGB(0, 0, 0)
+      when 'dominant'
+        colorThief = new ColorThief()
+        col = colorThief.getColor(dup)
+        fill = createjs.Graphics.getRGB(col[0], col[1], col[2])
+
+    ctx.rect(0,0,width,height)
+    ctx.fillStyle= fill
+    ctx.fill()
+
+
+    bmp = new createjs.Bitmap(dup)
+
+    borderWidth = 20
+    if values['border-style'] is 'square'
+      clip = new createjs.Graphics()
+      clip.rect(borderWidth,borderWidth,dup.width-(2*borderWidth), dup.height-(2*borderWidth))
+      bmp.clip = clip
+    else if values['border-style'] is 'retro'
+      clip = new createjs.Graphics()
+      Morandi.roundedRectangle(clip, borderWidth, borderWidth, dup.width-(borderWidth), dup.height-(borderWidth), 30)
+      bmp.clip = clip
+    bmp.draw(ctx, true)
+
+  setValues: (values) ->
+    values = @defaultValues(values)
 
     scale = @editor.baseScale * 0.85
     @editor.bmp.scaleX = scale
     @editor.bmp.scaleY = scale
-    @editor.bmp.rotation = values.straighten
+    @editor.bmp.rotation = 0 # values.straighten
 
     ratio = @editor.ratio ? Morandi.DEFAULT_RATIO
     rh = (@editor.bmp.image.height)
@@ -104,7 +161,7 @@ class root.Morandi.Border extends root.Morandi.EditMode
 
     g = new createjs.Graphics()
 
-    switch values['background-style'] ? 'white'
+    switch values['background-style']
       when 'white'
         g.f(createjs.Graphics.getRGB(255, 255, 255))
       when 'black'
@@ -114,17 +171,24 @@ class root.Morandi.Border extends root.Morandi.EditMode
         col = colorThief.getColor(@editor.bmp.image)
         g.f(createjs.Graphics.getRGB(col[0], col[1], col[2]))
 
-
     g.rect(x, y, w, h)
 
     @editor.border.graphics = g
+
   update: ->
     @editor.stage.setChildIndex(@editor.border, 0)
     #
 
-class root.Morandi.Rotation extends root.Morandi.EditMode
+class root.Morandi.Rotation extends root.Morandi.EditFilter
+  @applyTo: (editor, image) ->
+    image
 
-class root.Morandi.Crop extends root.Morandi.EditMode
+class root.Morandi.Crop extends root.Morandi.EditFilter
+  defaults:
+    zoom: 1.0
+    xalign: 0.5
+    yalign: 0.5
+
   addTo: (editor) ->
     super
     @editor.shape = new createjs.Shape()
@@ -133,11 +197,25 @@ class root.Morandi.Crop extends root.Morandi.EditMode
   removeFrom: (editor) ->
     @editor.stage.removeChild(@editor.shape)
     super
+  applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
+    values = @defaultValues(@editor.values)
 
+    dup = @editor.copyCanvas(@editor.bmp.cacheCanvas)
+    @editor.bmp.cacheCanvas.width = @editor.bmp.cacheCanvas.width
+    ctx.save()
+    ctx.translate(width/2,height/2)
+
+    xdiff = (values.zoom - 1) * width
+    ydiff = (values.zoom - 1) * height
+
+    ctx.translate((values.xalign * xdiff * -1) - (width/2), (values.yalign * ydiff * -1) - (height/2))
+    ctx.scale(values.zoom, values.zoom)
+
+    ctx.drawImage(dup, 0, 0)
+
+    ctx.restore()
   setValues: (values) ->
-    values ?= {}
-
-    values.zoom ?= 1.0
+    values = @defaultValues(values)
 
     @editor.bmp.scaleX = values.zoom
     @editor.bmp.scaleY = values.zoom
@@ -160,11 +238,37 @@ class root.Morandi.Crop extends root.Morandi.EditMode
     #
 
 
-class root.Morandi.Straighten extends root.Morandi.EditMode
+class root.Morandi.Straighten extends root.Morandi.EditFilter
+  defaults:
+    straighten: 0
   addTo: (editor) ->
     super
     @editor.shape = new createjs.Shape()
     @editor.stage.addChild(@editor.shape)
+
+  applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
+    values = @defaultValues(@editor.values)
+
+    ratio = @editor.ratio ? Morandi.DEFAULT_RATIO
+    rotationValueRad = values.straighten * (Math.PI/180)
+
+    rh = (height) / ((ratio * Math.sin(Math.abs(rotationValueRad))) + Math.cos(Math.abs(rotationValueRad)))
+
+    scale = Math.abs(height / rh)
+
+    dup = @editor.copyCanvas(@editor.bmp.cacheCanvas)
+    @editor.bmp.cacheCanvas.width = @editor.bmp.cacheCanvas.width
+    #p [@angle, rotationValueRad, rh, scale, pixbuf.height]
+    ctx.save()
+
+    ctx.translate(width / 2.0, height / 2.0)
+    ctx.rotate(rotationValueRad)
+    ctx.scale(scale, scale)
+    ctx.translate(width / -2.0, height / - 2.0)
+    ctx.drawImage(dup, 0, 0)
+
+    ctx.restore()
+
 
   removeFrom: (editor) ->
     @editor.stage.removeChild(@editor.shape)
@@ -172,9 +276,7 @@ class root.Morandi.Straighten extends root.Morandi.EditMode
     super
 
   setValues: (values) ->
-    values ?= {}
-
-    values.straighten ?= 0
+    values = @defaultValues(values)
     rotationValueRad = Math.abs(values.straighten * Math.PI / 180.0)
     scale = @editor.baseScale * @editor.bmp.image.height / ((@editor.bmp.image.width * Math.sin(rotationValueRad)) +
               (@editor.bmp.image.height * Math.cos(rotationValueRad)))
@@ -200,10 +302,18 @@ class root.Morandi.Straighten extends root.Morandi.EditMode
     @editor.stage.setChildIndex(@editor.shape, 1)
     #
 
-class root.Morandi.SimpleColourFX extends root.Morandi.EditMode
+class root.Morandi.SimpleColourFX extends root.Morandi.EditFilter
+  defaults:
+    fx: 'colour'
+
+  applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
+    @setValues(@editor.values)
+    for filter in @filters
+      filter.applyFilter(ctx, x, y, width, height, targetCtx, targetX, targetY)
+
   setValues: (values) ->
-    values ?= {}
-    values.fx ?= 'colour'
+    values = @defaultValues(values)
+    
     @filters = []
 
     switch values.fx
@@ -230,33 +340,36 @@ class root.Morandi.SimpleColourFX extends root.Morandi.EditMode
             @filters.push new createjs.ColorFilter(1,1,1,1, -10, 5, 25)
 
   update: ->
-    return unless @editor.bmp
-    @editor?.bmp?.filters = @filters ? []
-    @editor?.bmp?.updateCache()
+    return unless @editor?.bmp
+    @editor.bmp.filters = @filters ? []
+    @editor.bmp.updateCache()
 
   addTo: (editor) ->
     @editor = editor
     super
 
   removeFrom: (editor) ->
-    @editor?.bmp?.filters = []
-    @editor?.bmp?.updateCache()
+    if @editor?.bmp
+      @editor.bmp.filters = []
+      @editor.bmp.updateCache()
     super
 
+"""
+class root.Morandi.Colour extends root.Morandi.EditFilter
+  defaults:
+    brightness: 0
+    contrast: 0
+    saturation: 0
+    hue: 0
+    redChannel: 255
+    greenChannel: 255
+    blueChannel: 255
+    blurX: 0
+    blurY: 0
 
-class root.Morandi.Colour extends root.Morandi.EditMode
   setValues: (values) ->
-    values ?= {}
-    values.brightness ?= 0
-    values.contrast ?= 0
-    values.saturation ?= 0
-    values.hue ?= 0
-    values.redChannel ?= 255
-    values.greenChannel ?= 255
-    values.blueChannel ?= 255
-
-    values.blurX ?= 0
-    values.blurY ?= 0
+    values = @defaultValues(values)
+    
     cm = new createjs.ColorMatrix()
     cm.adjustColor(values.brightness, values.contrast, values.saturation, values.hue)
 
@@ -266,76 +379,96 @@ class root.Morandi.Colour extends root.Morandi.EditMode
     @greenChannelFilter = new createjs.ColorFilter(1,values.greenChannel/255,1,1)
     @blueChannelFilter = new createjs.ColorFilter(1,1,values.blueChannel/255,1)
 
-
   update: ->
     return unless @editor.bmp
-    @editor?.bmp?.filters = [@colorFilter, @blurFilter, @redChannelFilter, @greenChannelFilter, @blueChannelFilter]
-    @editor?.bmp?.updateCache()
+    #@editor?.bmp?.filters = [@colorFilter, @blurFilter, @redChannelFilter, @greenChannelFilter, @blueChannelFilter]
+    #@editor?.bmp?.updateCache()
 
   addTo: (editor) ->
     @editor = editor
     super
 
   removeFrom: (editor) ->
-    @editor?.bmp?.filters = []
-    @editor?.bmp?.updateCache()
+    #@editor?.bmp?.filters = []
+    #@editor?.bmp?.updateCache()
     super
+"""
 
 class root.MorandiEditor
   constructor: (canvas) ->
     @baseScale = 2
     @stage = new createjs.Stage(canvas)
     @canvas = canvas
-    @setEngine(new root.Morandi.Colour())
+    #@setEngine(new root.Morandi.Colour(@))
 
-  loadedImage: (img) ->
+  scaledSource: (orig) ->
+    @orig = orig
+    scale1 = @canvas.width / @orig.width
+    scale2 = @canvas.height / @orig.height
+
+    scale = scale1
+    scale = scale2 if scale2 < scale1
+
+    cCopy        = document.createElement("canvas")
+    cContext     = cCopy.getContext("2d")
+    cCopy.width  = scale * @orig.width
+    cCopy.height = scale * @orig.height
+
+    cContext.drawImage(@orig, 0, 0, @orig.width, @orig.height, 0, 0, cCopy.width, cCopy.height)
+
+    @source = cCopy
+    @sourceScale = scale
+
+    @baseScale = 1.0
+
+    cCopy
+
+  loadedImage: (original) ->
     @stage.removeChild(@bmp) if @bmp
 
-    @realWidth = img.width
-    @realHeight = img.height
-    scale1 = @canvas.width / img.width
-    scale2 = @canvas.height / img.height
-    if scale1 < scale2
-      @baseScale = scale1
-    else
-      @baseScale = scale2
+    @realWidth = original.width
+    @realHeight = original.height
 
-    @img = img
-    if @baseScale < 1.0
-      cCopy = document.createElement("canvas")
-      cContext     = cCopy.getContext("2d")
-      cCopy.width  = @baseScale * img.width
-      cCopy.height = @baseScale * img.height
-      cContext.drawImage(img, 0, 0, img.width, img.height, 0, 0, cCopy.width, cCopy.height)
-      img = cCopy
-      @baseScale = 1.0
+    image = @scaledSource(original)
 
-    @bmp = new createjs.Bitmap(img)
-    @bmp.regX = img.width / 2
-    @bmp.regY = img.height / 2
+    @bmp = new createjs.Bitmap(image)
+    @bmp.regX = image.width / 2
+    @bmp.regY = image.height / 2
     @bmp.scaleX = @baseScale
     @bmp.scaleY = @baseScale
-    @bmp.cache(0, 0, img.width, img.height)
     @stage.addChild(@bmp)
 
+    @setRatio(6/4)
+    @bmp.filters = (new klass(@) for klass in Morandi.Engines)
+    @bmp.cache(0, 0, @bmp.image.width, @bmp.image.height)
     $(@canvas).trigger('loaded', @bmp)
 
-    @setRatio(@ratio) if @ratio
     @setValues(@values ? {})
 
-  preprocessImage: () ->
+  processImage: (image) ->
     for engineClass in Morandi.Engines
-      return if engineClass.name == @engine?.className()
+      image = engineClass.applyTo(@, image)
+      #return if engineClass.name == @engine?.className()
+    image
+
+  copyCanvas: (canvas) ->
+    newCanvas = document.createElement('canvas')
+    newCanvas.width = canvas.width
+    newCanvas.height = canvas.height
+    ctx = newCanvas.getContext('2d')
+    ctx.drawImage(canvas, 0,0)
+    newCanvas
+
   setRatio: (ratio) ->
     @ratio = ratio
-    return unless @img
+    return unless @source
 
     cratio = @canvas.width / @canvas.height
-    iratio = @img.width / @img.height
+    iratio = @source.width / @source.height
 
     x = y = 0
 
-    largest = Morandi.largestAspectRectangle(ratio, @img.width, @img.height)
+    largest = Morandi.largestAspectRectangle(ratio, @source.width, @source.height)
 
     scale1 = @canvas.height / largest.height
     scale2 = @canvas.width / largest.width
@@ -347,7 +480,7 @@ class root.MorandiEditor
     cr = img.getContext("2d")
     img.width = largest.width * scale
     img.height = largest.height * scale
-    cr.drawImage(@img, largest.x, largest.y, largest.width, largest.height, 0, 0, img.width, img.height)
+    cr.drawImage(@source, largest.x, largest.y, largest.width, largest.height, 0, 0, img.width, img.height)
     @baseScale = 1.0
     @stage.removeChild(@bmp) if @bmp
     @bmp = new createjs.Bitmap(img)
@@ -355,6 +488,7 @@ class root.MorandiEditor
     @bmp.regY = img.height / 2
     @bmp.scaleX = @baseScale
     @bmp.scaleY = @baseScale
+    @bmp.filters = (new klass(@) for klass in Morandi.Engines)
     @bmp.cache(0, 0, img.width, img.height)
     @stage.addChild(@bmp)
     @setValues(@values)
@@ -367,9 +501,9 @@ class root.MorandiEditor
     img.src = src
 
   setEngine: (engine) ->
-    @engine.removeFrom(@) if @engine
-    @engine = engine
-    @engine.addTo(@)
+    #@engine.removeFrom(@) if @engine
+    #@engine = engine
+    #@engine.addTo(@)
 
   clearEditor: ->
     @stage.removeChild(@bmp) if @stage and @bmp
@@ -378,23 +512,47 @@ class root.MorandiEditor
     @values = {}
     @stage.update() if @stage
 
+  setAngle: (angle) ->
+    @values ?= {}
+    @values.angle = angle
+    @setValues(@values)
+
   setValues: (values) ->
     values ?= {}
 
     @values = values
+    valuesJSON = SortedJSON.encode(@values)
+    if @lastValues && valuesJSON != @lastValues
+      $(@canvas).trigger('modified', JSON.parse(valuesJSON)) # unmodifiable
+
     return unless @bmp && @canvas
     # Check image is centered
     @bmp.x = @canvas.width / 2
     @bmp.y = @canvas.height / 2
-    @bmp.scaleX = @baseScale
-    @bmp.scaleY = @baseScale
-    @bmp.rotation = 0
 
-    @engine.setValues(values)
+    scale = @baseScale
+    if @values.angle in [90,270]
+      s = @canvas.height / @bmp.image.width
+      s2 = @canvas.width / @bmp.image.height
+      scale = s2 if s2 < scale
+      scale = s if s < scale
+      #console.log("Scale was: (base=#{ @baseScale }) #{scale} - cmp #{s} & #{s2}")
+      #console.log("#{@bmp.image.width} : #{@canvas.height}")
+
+      #console.log("Scale is: #{scale} - #{@bmp.image.width} : #{@canvas.height}")
+
+    @bmp.scaleX = scale
+    @bmp.scaleY = scale
+
+      
+    @bmp.rotation = @values.angle ? 0
+    @bmp.updateCache()
+
+    #@engine.setValues(values)
     @update()
 
   update: ->
-    @engine.update()
+    @engine.update() if @engine
     @stage.update()
 
 
@@ -403,7 +561,6 @@ Morandi.Engines = [
   Morandi.Straighten,
   #Morandi.Ratio,
   Morandi.Crop,
-  Morandi.Colour,
   Morandi.SimpleColourFX,
   Morandi.Border
 ]

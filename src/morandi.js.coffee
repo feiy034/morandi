@@ -9,5 +9,6 @@
 #= bundled/filters/ColorMatrixFilter.js
 #= bundled/easeljs-clip.js
 #= bundled/color-thief.js
+#= sortedjson.coffee
 #= editor.coffee
 

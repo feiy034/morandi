@@ -6,7 +6,7 @@
     <link type="text/css" href="assets/demoStyles.css" rel="stylesheet" />
     <link type="text/css" href="assets/css/dark-hive/jquery-ui-1.8.18.custom.css" rel="stylesheet" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.min.js"></script>
     <script type="text/javascript" src="lib/morandi.js"></script>
 
 
@@ -47,6 +47,37 @@
 
         function handleImageLoad() {
 	        document.getElementById("loader").className = "";
+
+            $(".zoomSlider").slider({
+                value: 1.0,
+                min: 1.0,
+                max: 10,
+                step: 0.1,
+                disabled:false,
+	            change:handleChange,
+	            slide: handleSlide
+            });            
+            
+            $(".cropXSlider").slider({
+                value: 0.5,
+                min: 0,
+                max: 1.0,
+                step: 0.01,
+                disabled:false,
+	            change:handleChange,
+	            slide: handleSlide
+            });
+
+            $(".cropYSlider").height(180).slider({
+                value: 0.5,
+                min: 0,
+                max: 1.0,
+                step: 0.01,
+                disabled:false,
+                orientation: 'vertical',
+	            change:handleChange,
+	            slide: handleSlide
+            });
 
             $(".rotationSlider").slider({
                 value: 0,
@@ -179,13 +210,22 @@
               hue: hueValue,
               fx: $("#fx").val(),
               'border-style': $("#border-style").val(),
-              'background-style': $("#background-style").val()
+              'background-style': $("#background-style").val(),
+              'angle': parseInt($('#angle').val()),
+              'zoom': $(".zoomSlider").slider("option", "value"),
+              'xalign': $(".cropXSlider").slider("option", "value"),
+              'yalign': $(".cropYSlider").slider("option", "value")
             });
 
         }
 
         function handleReset() {
+            $(".zoomSlider").slider("option", "value", 0);
+            $(".cropXSlider").slider("option", "value", 0.5);
+            $(".cropYSlider").slider("option", "value", 0.5);
+            
             $(".rotationSlider").slider("option", "value", 0);
+
             $(".brightnessSlider").slider("option", "value", 0);
             $(".saturationSlider").slider("option", "value", 0);
             $(".hueSlider").slider("option", "value", 0);
@@ -225,10 +265,22 @@
 	    <p>Demonstrates using filters. Change the values in order to preview the results. Filters are applied on top of each other.</p>
 	</header>
 
-	<canvas id="testCanvas" width="1024" height="768"></canvas>
-    <table>
+	<canvas id="testCanvas" width="640" height="480" style="float:left"></canvas>
+    <table style="float: left; margin-left: 40px;">
         <td>
         <table cellspacing="7" border="0" cellpadding="3">
+            <tr>
+              <th><div>Crop Zoom:</div></th>
+                <td><div class="zoomSlider"></div></td>
+                <th rowspan=2><div>Crop Y:</div></th>
+                <td rowspan=8><div class="cropYSlider"></div></td>
+			      </tr>
+            <tr>
+                <th><div>Crop X:</div></th>
+                <td><div class="cropXSlider"></div></td>
+			      </tr>
+
+
             <tr>
                 <th><div>Rotation:</div></th>
                 <td><div class="rotationSlider"></div></td>
@@ -296,7 +348,15 @@
               <option value="black">Black</option>
               <option value="dominant">Smart</option>
             </select>
-          </div>
+            </div>
+            <div>
+            <select id="angle">
+              <option value="0">0&deg;</option>
+              <option value="90">90&deg;</option>
+              <option value="180">180&deg;</option>
+              <option value="270">270&deg;</option>
+            </select>
+            </div>
         </td>
     </table>
     <input type="button" id="resetBtn" name="resetBtn" value="Reset" />
@@ -314,7 +374,7 @@ $(function () {
     EDITOR.setEngine(new Morandi[ename]());
     applyEffect();
   });
-  $("#fx, #border-style, #background-style").change(function (e) { applyEffect(); });
+  $("select").change(function (e) { applyEffect(); });
 });
 </script>
 
