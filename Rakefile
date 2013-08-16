@@ -32,7 +32,11 @@ def compile(fn, paths, target)
   data = result.map do |entry|
     if entry[:ext] == '.coffee'
       "// file: #{entry[:script]}\n " +
-      CoffeeScript.compile(entry[:data])
+      begin
+        CoffeeScript.compile(entry[:data])
+      rescue Exception => e
+        "/*** #{e.class}: #{e.message}: #{e.backtrace * "\n  * "} **/"
+      end
     elsif entry[:ext] == '.js'
       "// file: #{entry[:script]}\n " +
       entry[:data]
