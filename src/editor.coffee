@@ -208,32 +208,29 @@ class root.Morandi.SimpleColourFX extends root.Morandi.EditFilter
     fx: 'colour'
 
   applyFilter: (ctx, x, y, width, height, targetCtx=ctx, targetX=x, targetY=y) ->
-    values = @defaultValues(@editorvalues)
+    values = @defaultValues(@editor.values)
     
     @filters = []
 
     switch values.fx
-      when 'colour'
-      else
+      when 'greyscale'
+        cm = new createjs.ColorMatrix()
+        cm.adjustColor(0, 0, -100, 0)
 
-        switch values.fx
-          when 'greyscale'
-            cm = new createjs.ColorMatrix()
-            cm.adjustColor(0, 0, -100, 0)
+        @filters.push new createjs.ColorMatrixFilter(cm)
+      when 'sepia'
+        cm = new createjs.ColorMatrix()
+        cm.adjustColor(0, 0, -50, 0)
 
-            @filters.push new createjs.ColorMatrixFilter(cm)
-          when 'sepia'
-            cm = new createjs.ColorMatrix()
-            cm.adjustColor(0, 0, -50, 0)
+        @filters.push new createjs.ColorMatrixFilter(cm)
+        @filters.push new createjs.ColorFilter(1,1,1,1, 25, 5, -25)
+      when 'bluetone'
+        cm = new createjs.ColorMatrix()
+        cm.adjustColor(0, 0, -50, 0)
 
-            @filters.push new createjs.ColorMatrixFilter(cm)
-            @filters.push new createjs.ColorFilter(1,1,1,1, 25, 5, -25)
-          when 'bluetone'
-            cm = new createjs.ColorMatrix()
-            cm.adjustColor(0, 0, -50, 0)
+        @filters.push new createjs.ColorMatrixFilter(cm)
+        @filters.push new createjs.ColorFilter(1,1,1,1, -10, 5, 25)
 
-            @filters.push new createjs.ColorMatrixFilter(cm)
-            @filters.push new createjs.ColorFilter(1,1,1,1, -10, 5, 25)
     for filter in @filters
       filter.applyFilter(ctx, x, y, width, height, targetCtx, targetX, targetY)
 
