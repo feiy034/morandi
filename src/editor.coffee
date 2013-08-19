@@ -223,13 +223,13 @@ class root.Morandi.SimpleColourFX extends root.Morandi.EditFilter
         cm.adjustColor(0, 0, -50, 0)
 
         @filters.push new createjs.ColorMatrixFilter(cm)
-        @filters.push new createjs.ColorFilter(1,1,1,1, 25, 5, -25)
+        @filters.push new createjs.ColorFilter(1, 1, 1, 1, 25, 5, -25)
       when 'bluetone'
         cm = new createjs.ColorMatrix()
         cm.adjustColor(0, 0, -50, 0)
 
         @filters.push new createjs.ColorMatrixFilter(cm)
-        @filters.push new createjs.ColorFilter(1,1,1,1, -10, 5, 25)
+        @filters.push new createjs.ColorFilter(1, 1, 1, 1, -10, 5, 25)
 
     for filter in @filters
       filter.applyFilter(ctx, x, y, width, height, targetCtx, targetX, targetY)
