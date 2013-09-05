@@ -327,11 +327,16 @@ class root.MorandiEditor
 
 
   setRatio: (ratio) ->
+    @originalRatio = ratio
     @ratio = ratio
     return unless @source
 
     cratio = @canvas.width / @canvas.height
     iratio = @source.width / @source.height
+
+    if Math.abs(iratio - ratio) > Math.abs(iratio - (1.0/ratio))
+      ratio = 1.0/ratio
+      @ratio = ratio
 
     x = y = 0
 
